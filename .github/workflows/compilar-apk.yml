@@ -5,11 +5,14 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - principal
       - main
+
+permissions:
+  contents: read
 
 jobs:
   compilar:
+    name: Generar APK Android
     runs-on: ubuntu-latest
 
     steps:
@@ -19,22 +22,40 @@ jobs:
       - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Preparar Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_HOME"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            --install "platforms;android-35" "build-tools;35.0.0"
 
       - name: Configurar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: Verificar archivos
+        run: |
+          echo "Archivos del proyecto:"
+          ls -la
+          echo "Archivos de Android:"
+          ls -la app
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+
       - name: Compilar APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Guardar APK
         uses: actions/upload-artifact@v4
         with:
           name: SistemaDeRiego-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
